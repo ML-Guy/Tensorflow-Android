@@ -1,6 +1,6 @@
 ### Usage: docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb -v HOST_SHARED_PATH:/shared iMAGE bash
 ###############################################################################################
-###							 SECTION 1- Install required SDK and NDK 						###
+###			SECTION 1- Install required SDK and NDK 
 ###############################################################################################
 # Copyright 2010-2016, Google Inc.
 # All rights reserved.
@@ -80,11 +80,15 @@ ENV PATH $PATH:/home/mozc_builder/work/depot_tools
 RUN git clone https://github.com/google/mozc.git -b master --single-branch --recursive
 
 ###############################################################################################
-###							 SECTION 2 - Install Tensorflow Dependencies					###
+###			SECTION 2 - Install Tensorflow Dependencies 
 ###############################################################################################
 
-ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
-ENV NDK_ROOT=/home/mozc_builder/work/android-ndk-r12b/
+ENV JAVA_HOME /usr/lib/jvm/java-1.8.0-openjdk-amd64
+ENV NDK_ROOT /home/mozc_builder/work/android-ndk-r12b/
+ENV ANDROID_API_LEVEL 23
+ENV ANDROID_BUILD_TOOLS_VERSION 23.0.1
+ENV ANDROID_SDK_HOME ${ANDROID_HOME}
+#ENV ANDROID_NDK_HOME ${ANDROID_NDK_HOME}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
@@ -166,7 +170,7 @@ RUN mkdir /bazel && \
 
 
 ###############################################################################################
-###							 SECTION 3 - Download tensorflow 								###
+###			SECTION 3 - Download tensorflow 
 ###############################################################################################
 # Download TensorFlow.
 
@@ -199,7 +203,7 @@ RUN tensorflow/contrib/makefile/download_dependencies.sh
 #EXPOSE 8888
 
 ###############################################################################################
-###				SECTION 4 - Compile Benchmarking Binaries for tensorflow Android			###
+###			SECTION 4 - Compile Benchmarking Binaries for tensorflow Android 
 ###############################################################################################
 
 RUN mkdir -p ~/graphs
@@ -222,28 +226,32 @@ RUN make -f tensorflow/contrib/makefile/Makefile TARGET=ANDROID
 #'
 
 ###############################################################################################
-###				SECTION 5 - Compile Tensorflow Demo APK for Android							###
+###			SECTION 5 - Compile Tensorflow Demo APK for Android	
 ###############################################################################################
+# Clean makefile leftovers to avoid the conflicts because of makefile usage before bazel
+RUN rm -rf tensorflow/contrib/makefile/downloads
 
+# Configure tensorflow
+RUN tensorflow/tools/ci_build/builds/configured ANDROID
+
+# Download graphs for tensorflow demo apk
 RUN curl -L https://storage.googleapis.com/download.tensorflow.org/models/inception5h.zip -o /tmp/inception5h.zip
 RUN curl -L https://storage.googleapis.com/download.tensorflow.org/models/mobile_multibox_v1.zip -o /tmp/mobile_multibox_v1.zip
 RUN unzip /tmp/inception5h.zip -d tensorflow/examples/android/assets/
 RUN unzip /tmp/mobile_multibox_v1.zip -d tensorflow/examples/android/assets/
 
-#edit WORKSPACE file for sdk and ndk path
-#ENV ANDROID_NDK_HOME /home/mozc_builder/work/android-ndk-r12b
-#ENV ANDROID_HOME /home/mozc_builder/work/android-sdk-linux
-# I have kept edited WORSPACE file in current folder to automate the processs. Coping this instead of editing the file
-COPY WORKSPACE /tensorflow/
+# Edit WORKSPACE file for sdk and ndk path and build tensorflow_demo.apk
+RUN tensorflow/tools/ci_build/builds/android.sh
  
-#Try to build APK. If fails, run "./configure" and "git submodule update --init" and then build again
-RUN bazel build --spawn_strategy=standalone //tensorflow/examples/android:tensorflow_demo
+## To build custom APK. Demo APK is already built by android.sh. Uncomment, if required.
+## If fails, run "./configure" and "git submodule update --init" and then build again
+#RUN bazel build -c opt --copt=-mfpu=neon --spawn_strategy=standalone //tensorflow/examples/android:tensorflow_demo
 
 ## Install APK to Android mobile phone: Uncomment/Run if phone is connected
 #RUN adb install -r -g bazel-bin/tensorflow/examples/android/tensorflow_demo.apk
 
 ###############################################################################################
-###				SECTION 6 - Everything Ready!! Get bash and finish.							###
+###			SECTION 6 - Everything Ready!! Get bash and finish.
 ###############################################################################################
 
 RUN echo All set darling!!! Your turn now!! 

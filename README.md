@@ -1,6 +1,7 @@
 # Tensorflow-Android
 
 Build : docker build - < Dockerfile
+
 Usage: docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb -v HOST_SHARED_PATH:/shared iMAGE bash
 
 Docker provides:
